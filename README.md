@@ -116,6 +116,49 @@ flowchart TD
     style Memory fill:#1E293B,stroke:#334155,stroke-width:2px,color:#94A3B8
     style End fill:#10B981,stroke:#059669,stroke-width:3px,color:#fff
 ```
+Simplified Architecture 
+
+``` mermaid 
+%%{init: {'theme':'dark', 'themeVariables': { 'primaryColor':'#2d2d2d', 'edgeLabelBackground':'#2d2d2d', 'tertiaryColor':'#2d2d2d'}}}%%
+graph LR
+    %% Main Orchestrator (The Green Node Style)
+    Core([🤖 SupplySentinel<br/>Orchestrator]):::main
+
+    %% Subgraph for the Loop (The Boxed Area in your image)
+    subgraph Detection_Loop [Autonomous Detection Loop]
+        direction LR
+        Watchman(🔍 Watchman Agent):::agent
+        Analyst(📊 Analyst Agent):::agent
+        
+        %% The Retry Cycle (Bi-directional)
+        Watchman -->|News| Analyst
+        Analyst -->|Retry Cmd| Watchman
+        
+        %% Tool connection
+        Google(🔧 Google Search):::tool --- Watchman
+    end
+
+    %% Standalone Agents
+    Config(🤖 Config Agent):::agent
+    Dispatcher(📤 Dispatcher Agent):::agent
+    
+    %% Passive Tools/Memory
+    Memory(💾 alert_history.json):::tool
+
+    %% Connections from Core (The "Fan Out")
+    Core --> Config
+    Core --> Detection_Loop
+    Core --> Dispatcher
+    Core --> Memory
+
+    %% Custom Styling to match the uploaded image
+    classDef main fill:#2E4F2F,stroke:#4d7f4d,stroke-width:2px,color:#fff;
+    classDef agent fill:#333,stroke:#fff,stroke-width:1px,color:#fff,rx:20,ry:20;
+    classDef tool fill:#333,stroke:#888,stroke-width:1px,color:#ccc,rx:5,ry:5;
+    
+    linkStyle default stroke:#bbb,stroke-width:1px;
+    
+```
 ---
 
 ## 🧩 5. Features from the Course Demonstrated
