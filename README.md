@@ -42,7 +42,7 @@ SupplySentinel assigns each cognitive responsibility to an independent agent, al
 | -------------------- | ------------------------------------- | -------------------------------------------------------------- |
 | **Config Agent**     | Supply chain materials modeling       | Converts high-level business info into material dependencies   |
 | **Watchman Agent**   | Real-time intelligence scanning       | Parallel monitoring across materials and locations + retry logic |
-| **Analyst Agent**    | Risk scoring + retry decisions        | Produces consistent, auditable risk classification + autonomous retry triggers |
+| **Analyst Agent**    | Risk scoring + retry decisions        | Decouples reasoning from searching; prevents 'hallucinated' risks by rejecting poor search results |
 | **Dispatcher Agent** | Alert memory & deduplication          | Prevents alert fatigue and manages long-term state             |
 
 This transforms risk monitoring from **reactive** → **proactive + autonomous**.
@@ -170,11 +170,11 @@ Critical Materials Identified:
 • Rare Earth Elements — China
 
 Agent Execution Flow:
-1. Config Agent maps material dependencies (not specific suppliers)
-2. Watchman searches news for Lithium in Chile → insufficient data
-3. Analyst detects score=0 → triggers RETRY
-4. Watchman retries with broader "Lithium supply" search → finds data
-5. Analyst re-evaluates → score=8/10
+1. Config Agent maps dependencies...
+2. Watchman searches "Lithium Chile"... [DATA INSUFFICIENT]
+3. 🔄 Analyst triggers RETRY STRATEGY (Protocol: Broaden_Search)
+4. Watchman retries "Lithium Global Shortage"... [SUCCESS]
+5. Analyst re-evaluates → Risk Score 8/10
 
 Critical Alert:
 ⚠ Lithium — Chile
