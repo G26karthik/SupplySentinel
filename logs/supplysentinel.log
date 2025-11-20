@@ -1,0 +1,7 @@
+2025-11-21 03:58:02 [DEBUG] [Agent.Config] — DEBUG: Config agent CLI test
+2025-11-21 03:58:02 [INFO] [Agent.Config] — INFO: Loaded 3 suppliers from configuration
+2025-11-21 03:58:02 [DEBUG] [Agent.Watchman] — DEBUG: Initiating search for Lithium in Chile
+2025-11-21 03:58:02 [INFO] [Agent.Watchman] — INFO: Search returned 8 data points for Lithium in Chile
+2025-11-21 03:58:02 [INFO] [Agent.Analyst] — INFO: Risk score computed: 3/10 — NORMAL threat level
+2025-11-21 03:58:02 [INFO] [Agent.Dispatcher] — INFO: Risk monitored (non-critical) — Lithium-Chile — Score: 3/10
+2025-11-21 03:58:02 [DEBUG] [Agent.Dispatcher] — DEBUG: Duplicate alert suppressed: Steel-China-2024-01-15

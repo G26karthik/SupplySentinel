@@ -1,422 +1,430 @@
-# 🛡️ SupplySentinel: Multi-Agent Supply Chain Protection
+# 🛡️ SupplySentinel — Multi-Agent AI for Autonomous Supply Chain Risk Protection
 
-> **Google x Kaggle Agents Intensive Capstone**  
-> **Track:** Enterprise Agents  
-> **Focus:** Autonomous supply chain risk monitoring with real-time alerting
+**Track:** Enterprise Agents
+**Capstone:** Google x Kaggle Agents Intensive (Nov 2025)
+**Author:** G Karthik Koundinya
 
-SupplySentinel is a **premium multi-agent AI system** that protects your supply chain from global disruptions. Using Google's Gemini 2.5 Flash with native search grounding, it automatically maps dependencies, monitors risks, and dispatches critical alerts—all through an intuitive one-click interface.
+---
 
-## 🎯 Key Highlights
+## 🚨 1. Problem
 
-- **🚀 One-Click Workflow**: Enter your business → Complete analysis in seconds
-- **🤖 4-Agent Architecture**: Config → Watchman → Analyst → Dispatcher
-- **🔍 Real-Time Intelligence**: Native Google Search integration for live data
-- **💎 Premium UI**: Modern, enterprise-grade Streamlit interface
-- **⚡ Instant Setup**: Zero configuration, AI-powered dependency mapping
-- **🎯 Smart Filtering**: Alerts only on critical risks (score ≥7/10)
+Global supply chains are increasingly fragile. Manufacturers across automotive, energy, aerospace, electronics and pharmaceuticals lose **$2.1 trillion annually** due to unexpected disruptions such as:
 
-## 🏗️ Multi-Agent Architecture
+* Political instability
+* Trade restrictions
+* Natural disasters
+* Labor strikes
+* Logistics bottlenecks
 
-### **Agent 1: Configuration Agent** 
-- **Role**: Supply Chain Mapper
-- **Input**: Business description (natural language)
-- **Output**: Structured dependency map (materials + locations)
-- **Tech**: Gemini AI reasoning
+Even world-class procurement teams fail because:
 
-### **Agent 2: Watchman Agent** 🔍
-- **Role**: Global Risk Scanner
-- **Input**: Material + Location pairs
-- **Output**: Real-time news about logistics, weather, politics
-- **Tech**: Gemini AI + **Google Search Grounding**
+> **69% of disruptions originate from second- or third-tier suppliers that are never monitored.**
 
-### **Agent 3: Analyst Agent** 📊
-- **Role**: Risk Evaluator
-- **Input**: News data from Watchman
-- **Output**: Risk score (0-10) + reason
-- **Tech**: Gemini AI analysis
+Existing tools are reactive — they surface risk **after** it has already impacted production.
 
-### **Agent 4: Dispatcher Agent** ✉️
-- **Role**: Alert Manager
-- **Input**: Risk scores from Analyst
-- **Output**: Critical alerts (if score ≥7)
-- **Tech**: Logic + persistent memory
+---
 
-## 🚀 Quick Start
+## 🌟 2. Solution: SupplySentinel
 
-### Prerequisites
-- Python 3.9+
-- Google Gemini API key ([Get one here](https://ai.google.dev/))
+SupplySentinel is an **autonomous, multi-agent Gemini-powered system** that **continuously monitors global supply chains and dispatches real-time alerts before disruptions hit production.**
 
-### Installation
+> In one click, the system takes a business description → maps supply dependencies → scans global risk signals → scores threats → issues alerts only when critical.
 
-```bash
-# Clone the repository
-git clone <repository-url>
-cd SupplySentinel-main
+---
 
-# Install dependencies
-pip install -r requirements.txt
+## 🧠 3. Why Agents?
 
-# Set your API key
-# Windows PowerShell:
-$env:GEMINI_API_KEY="your_api_key_here"
+A single LLM cannot simultaneously map supply chains, search global risk, reason about threat scoring, and manage alert memory.
 
-# Linux/Mac:
-export GEMINI_API_KEY="your_api_key_here"
+SupplySentinel assigns each cognitive responsibility to an independent agent, allowing:
 
-# Or create a .env file:
-echo "GEMINI_API_KEY=your_api_key_here" > .env
+| Agent Role           | Specialization                        | Why Independence Matters                                       |
+| -------------------- | ------------------------------------- | -------------------------------------------------------------- |
+| **Config Agent**     | Supply chain materials modeling       | Converts high-level business info into material dependencies   |
+| **Watchman Agent**   | Real-time intelligence scanning       | Parallel monitoring across materials and locations + retry logic |
+| **Analyst Agent**    | Risk scoring + retry decisions        | Produces consistent, auditable risk classification + autonomous retry triggers |
+| **Dispatcher Agent** | Alert memory & deduplication          | Prevents alert fatigue and manages long-term state             |
+
+This transforms risk monitoring from **reactive** → **proactive + autonomous**.
+
+---
+
+## 🏗️ 4. Multi-Agent Architecture
+
+![Architecture Diagram](architecture.png)
+
+**Key Agentic Features:**
+- ✅ **Autonomous Retry Loop**: If risk score = 0, Agent decides to retry with broader search
+- ✅ **Material-Based Modeling**: Focuses on materials (e.g., "Lithium") and dominant export countries (e.g., "Chile"), not specific companies
+- ✅ **Self-Correction**: Watchman accepts Analyst's retry command and adjusts search strategy
+- ✅ **Long-running mode**: Supports repeated execution (continuous 24/7 monitoring)
+
+**How It Works:**
+Simulates industry-standard dependencies to provide instant risk coverage without requiring sensitive data uploads. Instead of asking for proprietary supplier lists, the system intelligently maps critical materials based on business context.
+
+---
+
+### 📐 Generate Architecture Diagram
+
+Use this MermaidJS code to generate the architecture diagram:
+
+```mermaid
+%%{init: {'theme':'dark', 'themeVariables': { 'primaryColor':'#3B82F6','primaryTextColor':'#fff','primaryBorderColor':'#2563EB','lineColor':'#10B981','secondaryColor':'#1E293B','tertiaryColor':'#0F172A'}}}%%
+flowchart TD
+    Start([User Input:<br/>Business Description]) -->|Business Context| Config[🤖 Config Agent<br/>Supply Chain Modeling]
+    
+    Config -->|Generates| Map[(📊 Material Map<br/>suppliers.json)]
+    
+    Map --> Loop{For Each<br/>Material}
+    
+    Loop -->|Material + Location| Watchman1[🔍 Watchman Agent<br/>Search: Material in Location]
+    
+    Watchman1 -->|News Data| Analyst1[📊 Analyst Agent<br/>Risk Scoring]
+    
+    Analyst1 -->|Evaluate| Decision{Risk Score = 0?<br/>No Data Found}
+    
+    Decision -->|No - Data Found| Dispatcher[📤 Dispatcher Agent<br/>Alert Logic]
+    
+    Decision -->|Yes - Retry Needed| Retry[🔄 AGENT DECISION<br/>Trigger Retry Loop]
+    
+    Retry -->|Broader Query| Watchman2[🔍 Watchman Agent<br/>Search: Material Only Global]
+    
+    Watchman2 -->|Retry News Data| Analyst2[📊 Analyst Agent<br/>Re-evaluate Risk]
+    
+    Analyst2 --> Dispatcher
+    
+    Dispatcher -->|Score ≥ 7| Alert[🚨 Critical Alert<br/>Send to Procurement]
+    Dispatcher -->|Score < 7| Safe[✅ Mark as Safe]
+    Dispatcher -->|Duplicate| Skip[⏭️ Skip<br/>Already Assessed]
+    
+    Alert --> Memory[(💾 Alert History<br/>alert_history.json)]
+    Safe --> Memory
+    Skip --> Memory
+    
+    Memory --> Loop
+    
+    Loop -->|All Done| End([✅ Monitoring<br/>Complete])
+    
+    style Start fill:#3B82F6,stroke:#2563EB,stroke-width:3px,color:#fff
+    style Config fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#fff
+    style Watchman1 fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
+    style Watchman2 fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
+    style Analyst1 fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#fff
+    style Analyst2 fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#fff
+    style Decision fill:#EF4444,stroke:#DC2626,stroke-width:3px,color:#fff
+    style Retry fill:#EC4899,stroke:#DB2777,stroke-width:3px,color:#fff
+    style Dispatcher fill:#6366F1,stroke:#4F46E5,stroke-width:2px,color:#fff
+    style Alert fill:#EF4444,stroke:#DC2626,stroke-width:2px,color:#fff
+    style Safe fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
+    style Map fill:#1E293B,stroke:#334155,stroke-width:2px,color:#94A3B8
+    style Memory fill:#1E293B,stroke:#334155,stroke-width:2px,color:#94A3B8
+    style End fill:#10B981,stroke:#059669,stroke-width:3px,color:#fff
 ```
 
-### Run the Premium Web Interface (Recommended)
+**To render:**
+1. Go to [Mermaid Live Editor](https://mermaid.live/)
+2. Paste the code above
+3. Export as PNG with dark theme
+4. Save as `architecture.png` in repository root
+5. Commit and push to GitHub
+
+---
+
+## 🧩 5. Features from the Course Demonstrated
+
+| Capstone Key Concept    | Status in SupplySentinel                                        |
+| ----------------------- | --------------------------------------------------------------- |
+| Multi-Agent System      | ✔ Four agents with sequential handoffs + agentic retry loop     |
+| Tools                   | ✔ Native **Google Search Grounding**                            |
+| Long-Running Operations | ✔ CLI monitor mode (24/7)                                       |
+| Memory / State          | ✔ Persistent alert memory (`alert_history.json`)                |
+| Context Engineering     | ✔ Prompt conditioning per-agent + materials-focused modeling    |
+| Deployment              | ✔ Live production on **Google Cloud Run**                       |
+| Observability           | ✔ Structured logging + Live Logs UI + Historical metrics        |
+| Autonomous Decision     | ✔ Agent-driven retry loop when data insufficient                |
+
+> Minimum required concepts = **3**
+> SupplySentinel demonstrates **8**
+
+---
+
+## 💻 6. Live Demo (No Setup Required)
+
+🚀 **Web App:**
+[https://supply-sentinel-144683821783.us-central1.run.app/](https://supply-sentinel-144683821783.us-central1.run.app/)
+
+**Features:**
+
+1. **🛡️ Supply Chain Monitor** (Main Page)
+   - Enter Gemini API Key (stored only in browser session)
+   - Describe your business (e.g., *"I manufacture EV batteries in Texas"*)
+   - Click **Analyze & Monitor Supply Chain**
+   - Watch all 4 agents execute end-to-end
+   - View **Historical Performance Metrics** at bottom
+
+2. **📋 Live Logs** (Sidebar Navigation)
+   - Real-time agent activity logs
+   - Filter by agent or severity level
+   - Statistics dashboard (total logs, critical alerts, warnings, errors)
+   - Color-coded severity display
+   - Refresh/clear controls
+
+---
+
+## 📌 7. Example Result
+
+```
+Business: "I manufacture electric vehicles in California"
+
+Critical Materials Identified:
+• Lithium — Chile
+• Cobalt — Democratic Republic of Congo
+• Rare Earth Elements — China
+
+Agent Execution Flow:
+1. Config Agent maps material dependencies (not specific suppliers)
+2. Watchman searches news for Lithium in Chile → insufficient data
+3. Analyst detects score=0 → triggers RETRY
+4. Watchman retries with broader "Lithium supply" search → finds data
+5. Analyst re-evaluates → score=8/10
+
+Critical Alert:
+⚠ Lithium — Chile
+Risk Score: 8/10
+Reason: Mining strikes impacting lithium output
+Action: Alert sent to procurement
+
+Final Summary:
+3 Materials monitored | 2 safe | 1 critical | 1 retry executed
+```
+
+---
+
+## 🖥 8. Technology Stack
+
+| Layer        | Technology         |
+| ------------ | ------------------ |
+| LLM          | Gemini 2.5 Flash   |
+| Grounding    | Google Search Tool |
+| Framework    | Streamlit          |
+| Backend      | Python 3.9+        |
+| Agent Memory | JSON persistence   |
+| Deployment   | Google Cloud Run   |
+
+---
+
+## 📁 9. Repository Structure
+
+```
+SupplySentinel/
+├── app.py                 # Web UI (MAIN) with Live Logs page
+├── supply_sentinel.py     # CLI long-running monitor
+├── config_agent.py        # CLI supply chain mapping
+├── logging_config.py      # Structured logging configuration
+├── metrics_tracker.py     # Historical performance tracking
+├── test_logging.py        # Logging system test utility
+├── requirements.txt
+├── suppliers.json         # Auto-generated dependency map
+├── alert_history.json     # Long-term alert memory
+├── metrics_history.json   # Historical metrics data
+├── logs/
+│   └── supplysentinel.log # CLI rotating log file
+├── Dockerfile
+├── README.md
+└── LOGGING.md             # Logging documentation
+```
+
+---
+
+## 📊 10. Observability & Metrics
+
+### Production-Grade Logging
+
+SupplySentinel includes **structured logging** across all four agents with real-time UI visibility:
+
+**Log Format:**
+```
+2024-01-15 14:32:45 [INFO] [Agent.Config] — Dependency mapping complete — 3 dependencies extracted
+2024-01-15 14:32:47 [CRITICAL] [Agent.Analyst] — Risk score computed: 9/10 — CRITICAL threat level
+```
+
+**Web UI Features:**
+- **📋 Live Logs Page**: Dedicated tab in sidebar for real-time log viewing
+- **Filters**: By agent (Config, Watchman, Analyst, Dispatcher) and severity level
+- **Statistics**: Total logs, critical alerts, warnings, errors
+- **Color-coded display**: Critical (red), Warning (orange), Info (blue), Debug (gray)
+- **In-memory buffer**: Last 500 log entries with refresh/clear controls
+
+### Historical Performance Metrics
+
+**Tracked Automatically:**
+- 📈 **Total Scans Performed**: Cumulative count across all sessions
+- 🚨 **Total Critical Alerts**: Number of high-risk alerts dispatched
+- ⚖️ **Average Risk Score**: Mean risk score (0-10 scale) across all dependencies
+- 🕐 **Last Scan Timestamp**: When the most recent analysis completed
+
+**Persistence**: Metrics stored in `metrics_history.json` with last 100 scan records
+
+### Log Levels by Agent
+
+**Config Agent:**
+- `INFO`: Dependency mapping completion, supplier saves
+- `DEBUG`: Mapping initiation
+- `ERROR`: Generation failures
+
+**Watchman Agent:**
+- `INFO`: Search results with data point counts
+- `DEBUG`: Search initiation
+- `ERROR`: Search API failures
+
+**Analyst Agent:**
+- `CRITICAL`: Risk score ≥ 7 (factory-level threats)
+- `WARNING`: Risk score 5-6 (elevated threats)
+- `INFO`: Risk score < 5 (normal operations)
+- `ERROR`: Analysis failures
+
+**Dispatcher Agent:**
+- `CRITICAL`: Alert dispatched to procurement
+- `INFO`: Cycle completion statistics, safe assessments
+- `DEBUG`: Duplicate alert suppression
+
+### Viewing Logs
+
+**Cloud Run (Streamlit):**
+```bash
+gcloud logging read "resource.type=cloud_run_revision" --limit 50
+```
+
+**CLI Mode:**
+```bash
+tail -f logs/supplysentinel.log
+grep "CRITICAL" logs/supplysentinel.log
+```
+
+**Web UI:**
+- Navigate to **📋 Live Logs** in sidebar
+- Filter by agent/severity, refresh in real-time
+- View statistics dashboard
+
+**Full Documentation:** See [LOGGING.md](LOGGING.md)
+
+---
+
+## ⚙️ 11. Quick Start (Local)
 
 ```bash
+git clone https://github.com/G26karthik/SupplySentinel.git
+cd SupplySentinel
+pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Then:
-1. **Enter your API key** in the sidebar (if not in .env)
-2. **Describe your business**: "I manufacture solar panels in Arizona"
-3. **Click "Analyze & Monitor Supply Chain"**
-4. **Watch the multi-agent system work** automatically!
+> No `.env` required — enter API key in UI.
 
-### Run Command-Line Version (Alternative)
+---
 
-```bash
-# Step 1: Configure your supply chain
-python config_agent.py
+## 🧪 12. Example Code Snippets
 
-# Step 2: Start continuous monitoring
-python supply_sentinel.py
-```
+### Google Search Tool
 
-## 💎 Premium Web Interface
-
-The Streamlit app provides an enterprise-grade experience:
-
-### ✨ Features
-- **Single-Page Flow**: Complete analysis in one click
-- **Real-Time Metrics**: Live updating dashboards
-- **Visual Supply Chain Map**: See your dependencies at a glance
-- **Color-Coded Alerts**: Critical (red), Safe (green), Info (blue)
-- **Progressive Disclosure**: Watch agents work step-by-step
-- **Responsive Design**: Works on desktop and mobile
-- **Dark Theme**: Premium glassmorphism UI
-
-### 🎨 UI Components
-- Premium card layouts with hover effects
-- Animated metric displays
-- Status cards with left-border accents
-- Gradient buttons with lift animations
-- Real-time progress tracking
-- Final summary dashboard
-
-## 📁 Project Structure
-
-```
-SupplySentinel-main/
-├── app.py                    # Premium Streamlit web interface (MAIN)
-├── supply_sentinel.py        # CLI monitoring loop (alternative)
-├── config_agent.py          # CLI configuration tool (alternative)
-├── requirements.txt         # Python dependencies
-├── .env                     # API key storage (create this)
-├── suppliers.json           # Auto-generated supply chain map
-├── alert_history.json       # Agent memory for deduplication
-├── README.md               # This file
-└── README_DEPLOY.md        # Cloud deployment guide
-```
-
-## 🔄 How It Works
-
-### Single-Click Workflow (Web UI)
-
-```
-User Input
-   ↓
-[Config Agent] → Analyzes business → Generates suppliers.json
-   ↓
-[Supply Chain Map Display] → Visual representation
-   ↓
-For each dependency:
-   [Watchman Agent] → Scans Google Search → Returns news
-        ↓
-   [Analyst Agent] → Evaluates risk → Returns score (0-10)
-        ↓
-   [Dispatcher Agent] → If score ≥7 → CRITICAL ALERT
-                      → If score <7 → Safe status
-   ↓
-[Final Summary] → Total scanned, Safe count, Critical count
-```
-
-### Multi-Agent Handoffs
-
-1. **Config Agent** passes `suppliers.json` to monitoring phase
-2. **Watchman Agent** passes `search_results` to Analyst
-3. **Analyst Agent** passes `risk_data` to Dispatcher
-4. **Dispatcher Agent** checks memory and sends alerts
-
-## 🧠 Agentic Concepts Implemented
-
-### 1. **Tool Usage** (Google Search Grounding)
 ```python
-self.search_tool = types.Tool(
-    google_search=types.GoogleSearch()
-)
-```
-Watchman Agent uses native Google Search to find real-time supply chain news.
-
-### 2. **Memory/State Persistence**
-```python
-self.alert_history = self._load_history()  # From alert_history.json
-```
-Prevents duplicate alerts using persistent file-based memory.
-
-### 3. **Multi-Agent Handshakes**
-```python
-news = watchman_agent(material, location)
-risk_data = analyst_agent(material, location, news)
-dispatcher_agent(material, location, risk_data)
-```
-Agents pass context to each other in a pipeline.
-
-### 4. **Autonomous Decision Making**
-```python
-if score >= 7:  # Dispatcher's autonomous threshold
-    send_critical_alert()
-```
-Agents make decisions without human intervention.
-
-### 5. **Long-Running Operations**
-The system can run continuously in debug mode (single cycle) or 24/7 production mode.
-
-## 📊 Example Output
-
-### Web Interface Flow
-
-```
-🛡️ SupplySentinel
-AI-Powered Multi-Agent Risk Monitoring
-
-📝 Business Description
-[Input: "I manufacture electric vehicles in California"]
-
-[🎯 Analyze & Monitor Supply Chain]
-
-🤖 Phase 1: Configuration Agent
-✓ Supply Chain Mapped!
-  Identified 3 critical dependencies
-
-📊 Supply Chain Map
-┌─────────────┐  ┌─────────────┐  ┌─────────────┐
-│ 📦 Lithium  │  │ 📦 Steel    │  │ 📦 Rubber   │
-│ 📍 Chile    │  │ 📍 China    │  │ 📍 Thailand │
-└─────────────┘  └─────────────┘  └─────────────┘
-
-👁️ Phase 2: Watchman → Analyst → Dispatcher
-
-📈 Real-Time Metrics
-┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
-│ Scanned │ │ ✓ Safe  │ │ ⚠ Crit  │ │Progress │
-│    3    │ │    2    │ │    1    │ │  100%   │
-└─────────┘ └─────────┘ └─────────┘ └─────────┘
-
-🔍 Risk Analysis Results
-
-🚨 CRITICAL: Lithium
-📍 Location:   Chile
-⚠️ Risk Score: 8/10
-📋 Reason:     Mining strikes affecting production
-✉️ Dispatcher: Alert sent to procurement
-
-✓ Steel from China
-  Risk: 2/10 • No significant risks detected
-
-✓ Rubber from Thailand
-  Risk: 3/10 • Normal operations
-
-✅ Multi-Agent Analysis Complete
-   3 Dependencies Mapped  |  2 Safe  |  1 Critical
-```
-
-### Command-Line Output
-
-```bash
-$ python supply_sentinel.py
-
-🟢 SupplySentinel Active. Monitoring Global Chains...
-
-🔍 Watchman scanning: Lithium in Chile...
-📊 Analyst evaluating risk...
-
-🚨 🚨 CRITICAL ALERT: Lithium Supply Chain Risk!
-   -> Location: Chile
-   -> Score: 8/10
-   -> Reason: Mining strikes affecting lithium production
-   -> [Sent Email to Procurement Team]
-
-💤 Cycle complete. Sleeping for 24 hours...
-```
-
-## 🎓 Technical Details
-
-### Technology Stack
-- **AI Model**: Google Gemini 2.5 Flash
-- **SDK**: `google-genai` v1.0+
-- **Search**: Native Google Search Grounding
-- **UI**: Streamlit with custom CSS
-- **Backend**: Python 3.9+
-- **State**: JSON file-based persistence
-
-### API Configuration
-```python
-from google import genai
-from google.genai import types
-
-client = genai.Client(api_key=GEMINI_API_KEY)
-model_id = "gemini-2.5-flash"
-
-# Enable Google Search
 search_tool = types.Tool(
     google_search=types.GoogleSearch()
 )
 ```
 
-### Agent Prompts
+### Structured Logging
 
-**Config Agent:**
-```
-Based on: "I manufacture solar panels in Arizona", 
-identify the top 3 likely supply chain dependencies.
-Return as JSON: [{"material": "...", "location": "..."}]
-```
+```python
+from logging_config import setup_logging, watchman_logger
 
-**Watchman Agent:**
-```
-Find recent logistics, weather, or political news 
-affecting {material} supply from {location}.
-Focus on strikes, shortages, or natural disasters.
+setup_logging(environment="cli")  # or "streamlit"
+watchman_logger.info(f"Search returned {count} data points for {material}")
+analyst_logger.critical(f"Risk score computed: {score}/10 — CRITICAL threat level")
 ```
 
-**Analyst Agent:**
-```
-CONTEXT: You are a Supply Chain Risk Officer.
-INPUT DATA: {search_results}
-TASK: Analyze risk for {material} from {location}.
-OUTPUT: risk_score (0-10), reason (1 sentence), action_needed
-```
+### Historical Metrics Tracking
 
-## ☁️ Cloud Deployment
+```python
+from metrics_tracker import MetricsTracker
 
-Deploy to Google Cloud Run with one command:
+tracker = MetricsTracker()
+tracker.record_scan(suppliers_count=3, critical_count=1, risk_scores=[3.5, 7.2, 2.1])
 
-```bash
-# Build and deploy
-gcloud run deploy supplysent --source . --allow-unauthenticated
+# Retrieve metrics
+total_scans = tracker.get_total_scans()
+avg_risk = tracker.get_avg_risk_score()
+last_scan = tracker.get_last_scan_timestamp()
 ```
 
-See [README_DEPLOY.md](README_DEPLOY.md) for complete instructions.
+### Memory (Dispatcher)
 
-**Benefits:**
-- Serverless scaling
-- HTTPS by default
-- No infrastructure management
-- Pay-per-use pricing
-- Global availability
-
-## 🏆 Competition Compliance
-
-### ✅ Required Features
-- [x] **Google Search Tool Integration**: Native `GoogleSearch()` in Watchman Agent
-- [x] **Multi-Agent Architecture**: 4 specialized agents with handoffs
-- [x] **Persistent Memory**: `alert_history.json` for deduplication
-- [x] **Autonomous Decision Making**: Risk threshold filtering
-- [x] **Long-Running Operation**: Continuous monitoring loop
-- [x] **Gemini 2.5 Flash**: Latest stable model
-
-### 🎁 Bonus Features
-- [x] **Premium Web Interface**: Enterprise-grade Streamlit UI
-- [x] **One-Click Workflow**: Complete flow in single interaction
-- [x] **Real-Time Dashboards**: Live metrics and progress
-- [x] **Cloud Deployment Ready**: Production-ready with Docker
-- [x] **Visual Supply Chain Maps**: Intuitive dependency display
-- [x] **Responsive Design**: Mobile and desktop support
-
-## 📝 Configuration Files
-
-### suppliers.json (Auto-generated)
-```json
-[
-  {
-    "material": "Lithium",
-    "location": "Chile"
-  },
-  {
-    "material": "Steel",
-    "location": "China"
-  },
-  {
-    "material": "Rubber",
-    "location": "Thailand"
-  }
-]
+```python
+self.alert_history = self._load_history()
+if alert_id not in self.alert_history:
+    self.alert_history.append(alert_id)
+    self._save_history()
 ```
 
-### alert_history.json (Agent Memory)
-```json
-[
-  "Lithium-Chile-2025-11-21",
-  "Steel-China-2025-11-20"
-]
+### Handoff Execution with Retry Loop
+
+```python
+# Initial search
+news = watchman_agent(material, location)
+risk = analyst_agent(material, location, news)
+
+# Agentic retry logic
+if risk['risk_score'] == 0 and risk['retry_search']:
+    # Agent decides to retry with broader search
+    news_retry = watchman_agent(material, location, retry_without_location=True)
+    risk = analyst_agent(material, location, news_retry)
+
+dispatcher_agent(material, location, risk)
 ```
-
-### .env (API Key Storage)
-```
-GEMINI_API_KEY=your_api_key_here
-```
-
-## 🐛 Troubleshooting
-
-**Issue**: "API Key not found"
-```bash
-# Solution: Set environment variable or create .env file
-echo "GEMINI_API_KEY=your_key" > .env
-```
-
-**Issue**: "No module named 'google.genai'"
-```bash
-# Solution: Install latest google-genai SDK
-pip install google-genai>=1.0.0
-```
-
-**Issue**: "Search tool not working"
-```bash
-# Solution: Ensure you're using gemini-2.5-flash (not 1.5)
-# Check in code: model_id = "gemini-2.5-flash"
-```
-
-**Issue**: Streamlit not starting
-```bash
-# Solution: Install streamlit
-pip install streamlit
-streamlit run app.py
-```
-
-## 📚 Resources
-
-- [Google Gemini API Docs](https://ai.google.dev/docs)
-- [Streamlit Documentation](https://docs.streamlit.io)
-- [Google Search Grounding Guide](https://ai.google.dev/docs/grounding)
-- [Deployment Guide](README_DEPLOY.md)
-
-## 📄 License
-
-MIT License - Feel free to use for your supply chain protection needs!
-
-## 🙏 Acknowledgments
-
-Built for the **Google x Kaggle Agents Intensive Capstone Project**  
-Enterprise Track - November 2025
 
 ---
 
-**⭐ Ready to protect your supply chain? Run `streamlit run app.py` and experience the future of autonomous risk monitoring!**
+## 🚀 13. Deployment
+
+Fully deployed to **Google Cloud Run**
+Auto-scaling, HTTPS, global CDN, container-based runtime.
+
+Deploy your own instance:
+
+```bash
+gcloud run deploy supply-sentinel --source . --allow-unauthenticated --region us-central1
+```
+
+---
+
+## 🏁 13. Value Summary
+
+| Metric              | Impact                                               |
+| ------------------- | ---------------------------------------------------- |
+| Time to set up      | < 15 seconds                                         |
+| Monitoring effort   | Fully autonomous                                     |
+| Noise               | Alerts only score ≥7                                 |
+| Downtime prevention | Reduces risk of supply shock before production halts |
+
+> The system is designed to **save millions by preventing disruptions, not reacting to them.**
+
+---
+
+## 📝 14. License
+
+MIT License
+
+---
+
+## 🙌 15. Acknowledgments
+
+Built for the **Google x Kaggle Agents Intensive Capstone Project 2025**
+Enterprise Track — November 2025
+
+---
+
+## 🎥 16.  Video 
+
+A 3-minute demo video will accompany this project.
+
+---

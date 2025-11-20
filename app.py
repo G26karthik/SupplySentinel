@@ -8,6 +8,12 @@ from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 
+# Import logging configuration
+from logging_config import setup_logging, config_logger, watchman_logger, analyst_logger, dispatcher_logger, get_recent_logs, clear_log_buffer
+
+# Import metrics tracker
+from metrics_tracker import MetricsTracker
+
 # Load environment variables
 load_dotenv()
 
@@ -19,8 +25,8 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Configure logging for Streamlit/Cloud Run
+setup_logging(environment="streamlit")
 
 # Premium Custom CSS
 def load_custom_css():
@@ -233,17 +239,27 @@ class StreamlitConfigAgent:
         self.model_id = "gemini-2.5-flash"
 
     def generate_suppliers(self, business_context: str):
-        system_instruction = "You are a Global Supply Chain Expert. Identify the top 3 most critical supply chain dependencies (materials and their likely country of origin) for a given business. Be precise and realistic."
+        system_instruction = """You are a Global Supply Chain Expert specializing in materials sourcing. 
+        Your goal is to identify critical MATERIALS (not specific companies) and their dominant export countries 
+        for a given business. Focus on industry-standard dependencies based on the business type."""
         
         prompt = f"""
-        Based on: "{business_context}", identify the top 3 likely supply chain dependencies.
-        For each dependency, specify the 'material' and the likely 'location' (Country) of origin.
+        Based on: "{business_context}", identify the top 3 critical MATERIALS this business depends on.
+        For each material, specify the DOMINANT EXPORT COUNTRY (not specific suppliers).
+        
+        Focus on:
+        - Raw materials or key components (e.g., "Lithium" not "Tesla suppliers")
+        - Industry-standard sourcing patterns (e.g., "Semiconductors from Taiwan")
+        - Geopolitical supply chain realities
         
         Return as a JSON list of objects with "material" and "location" keys.
-        Example: [{{"material": "Steel", "location": "China"}}, {{"material": "Rubber", "location": "Thailand"}}]
+        Example: [{{"material": "Lithium", "location": "Chile"}}, {{"material": "Cobalt", "location": "Democratic Republic of Congo"}}]
+        
+        This simulates industry-standard dependencies to provide instant risk coverage without requiring sensitive data uploads.
         """
         
         try:
+            config_logger.debug("Dependency mapping initiated")
             response = self.client.models.generate_content(
                 model=self.model_id,
                 contents=prompt,
@@ -252,8 +268,11 @@ class StreamlitConfigAgent:
                     response_mime_type="application/json"
                 )
             )
-            return json.loads(response.text)
+            suppliers = json.loads(response.text)
+            config_logger.info(f"Dependency mapping complete — {len(suppliers)} dependencies extracted")
+            return suppliers
         except Exception as e:
+            config_logger.error(f"Error generating suppliers: {str(e)}", exc_info=True)
             st.error(f"Error generating suppliers: {e}")
             return []
 
@@ -282,11 +301,21 @@ class StreamlitSentinel:
         with open(self.history_file, 'w') as f:
             json.dump(list(self.alert_history), f)
 
-    def watchman_agent(self, material, location):
-        prompt = f"""
-        Find recent logistics, weather, or political news affecting {material} supply from {location}.
-        Focus on strikes, shortages, or natural disasters in the last 7 days.
-        """
+    def watchman_agent(self, material, location, retry_without_location=False):
+        if retry_without_location:
+            # Retry with broader search (material only)
+            prompt = f"""
+            Find recent logistics, weather, or political news affecting {material} supply globally.
+            Focus on strikes, shortages, or natural disasters in the last 7 days.
+            """
+            watchman_logger.info(f"Retrying search with broader query (material-only): {material}")
+        else:
+            # Normal search with location
+            prompt = f"""
+            Find recent logistics, weather, or political news affecting {material} supply from {location}.
+            Focus on strikes, shortages, or natural disasters in the last 7 days.
+            """
+            watchman_logger.debug(f"Initiating search for {material} in {location}")
         
         try:
             response = self.client.models.generate_content(
@@ -297,12 +326,22 @@ class StreamlitSentinel:
                     response_mime_type="text/plain"
                 )
             )
-            return response.text
+            result = response.text
+            article_count = len([line for line in result.split('\n') if line.strip()])
+            
+            if retry_without_location:
+                watchman_logger.info(f"Retry search returned {article_count} data points for {material}")
+            else:
+                watchman_logger.info(f"Search returned {article_count} data points for {material} in {location}")
+            
+            return result
         except Exception as e:
+            watchman_logger.error(f"Search error for {material} in {location}: {str(e)}", exc_info=True)
             return f"Search error: {str(e)}"
 
     def analyst_agent(self, material, location, search_data):
         if not search_data or "error" in search_data.lower():
+            analyst_logger.warning(f"Insufficient data for analysis: {material} in {location}")
             return None
 
         prompt = f"""
@@ -311,12 +350,14 @@ class StreamlitSentinel:
         TASK: Analyze risk for {material} from {location}.
         
         OUTPUT JSON:
-        - risk_score (0-10, where 10 is factory shutdown)
+        - risk_score (0-10, where 10 is factory shutdown, 0 means no relevant information found)
         - reason (1 sentence)
         - action_needed (boolean)
+        - retry_search (boolean - true if score is 0 and a broader search might help)
         """
 
         try:
+            analyst_logger.debug(f"Risk analysis initiated for {material} in {location}")
             response = self.client.models.generate_content(
                 model=self.model_id,
                 contents=prompt,
@@ -324,14 +365,29 @@ class StreamlitSentinel:
                     response_mime_type="application/json"
                 )
             )
-            return json.loads(response.text)
+            risk_data = json.loads(response.text)
+            score = risk_data.get('risk_score', 0)
+            
+            # Log based on severity
+            if score == 0:
+                analyst_logger.warning(f"No relevant data found for {material} in {location} — Agent recommends retry")
+            elif score >= 7:
+                analyst_logger.critical(f"Risk score computed: {score}/10 — CRITICAL threat level for {material} in {location}")
+            elif score >= 5:
+                analyst_logger.warning(f"Risk score computed: {score}/10 — ELEVATED threat level for {material} in {location}")
+            else:
+                analyst_logger.info(f"Risk score computed: {score}/10 — NORMAL threat level for {material} in {location}")
+            
+            return risk_data
         except Exception as e:
+            analyst_logger.error(f"Analysis error for {material} in {location}: {str(e)}", exc_info=True)
             return None
 
     def check_item(self, material, location):
         alert_id = f"{material}-{location}-{datetime.now().strftime('%Y-%m-%d')}"
         
         if alert_id in self.alert_history:
+            dispatcher_logger.debug(f"Duplicate alert suppressed: {alert_id}")
             return {
                 "material": material,
                 "location": location,
@@ -339,13 +395,26 @@ class StreamlitSentinel:
                 "message": "Already assessed today"
             }
         
+        # PHASE 1: Initial search with location
         with st.spinner(f"🔍 Watchman scanning: {material} in {location}..."):
             news = self.watchman_agent(material, location)
         
+        # PHASE 2: Analyst evaluation
         with st.spinner(f"📊 Analyst evaluating risk..."):
             risk_data = self.analyst_agent(material, location, news)
         
+        # PHASE 3: Agentic retry logic - if no relevant data found
+        if risk_data and risk_data.get('risk_score', 0) == 0 and risk_data.get('retry_search', False):
+            dispatcher_logger.info(f"Agent decision: Retry with broader search for {material}")
+            
+            with st.spinner(f"🔄 Agent retrying with broader search: {material}..."):
+                news_retry = self.watchman_agent(material, location, retry_without_location=True)
+            
+            with st.spinner(f"📊 Re-analyzing with new data..."):
+                risk_data = self.analyst_agent(material, location, news_retry)
+        
         if not risk_data:
+            dispatcher_logger.info(f"No significant risks detected for {material} in {location}")
             return {
                 "material": material,
                 "location": location,
@@ -360,6 +429,7 @@ class StreamlitSentinel:
         if score >= 7:
             self.alert_history.add(alert_id)
             self._save_history()
+            dispatcher_logger.critical(f"Critical alert sent — {material}-{location} — Score: {score}/10 — Reason: {reason}")
             return {
                 "material": material,
                 "location": location,
@@ -368,6 +438,7 @@ class StreamlitSentinel:
                 "reason": reason
             }
         else:
+            dispatcher_logger.info(f"Risk monitored (non-critical) — {material}-{location} — Score: {score}/10")
             return {
                 "material": material,
                 "location": location,
@@ -379,8 +450,16 @@ class StreamlitSentinel:
 def main():
     load_custom_css()
     
-    # Sidebar
+    # Sidebar Navigation
     with st.sidebar:
+        st.markdown("### 🧭 Navigation")
+        page = st.radio(
+            "Select Page",
+            ["🛡️ Supply Chain Monitor", "📋 Live Logs"],
+            label_visibility="collapsed"
+        )
+        
+        st.markdown("---")
         st.markdown("### ⚙️ Configuration")
         
         api_key = st.text_input(
@@ -397,7 +476,6 @@ def main():
         )
         
         st.markdown("---")
-        
         st.markdown("### ✨ Multi-Agent System")
         st.markdown("""
         <div style='font-size: 0.9rem; line-height: 1.8;'>
@@ -434,9 +512,179 @@ def main():
             st.markdown("""
             <div style='display: flex; align-items: center; gap: 0.5rem; color: #F59E0B;'>
                 <span style='font-size: 1.5rem;'>●</span>
-                <span style='font-size: 0.85rem; font-weight: 600;'>Awaiting API Key</span>
+                <span style='font-size: 0.85rem; font-weight: 600;'>API Key Required</span>
             </div>
             """, unsafe_allow_html=True)
+    
+    # Route to appropriate page
+    if page == "📋 Live Logs":
+        show_logs_page()
+    else:
+        show_monitor_page(api_key, debug_mode)
+
+def show_logs_page():
+    """Display live logs page"""
+    st.markdown("""
+    <div style='text-align: center; padding: 1rem 0 2rem 0;'>
+        <h1 style='font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem; background: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;'>
+            📋 Live Agent Logs
+        </h1>
+        <p style='color: #94A3B8; font-size: 1.1rem;'>Real-time observability across all four agents</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Controls
+    col1, col2, col3 = st.columns([2, 1, 1])
+    
+    with col1:
+        log_limit = st.slider("Number of logs to display", 10, 500, 100, 10)
+    
+    with col2:
+        if st.button("🔄 Refresh", use_container_width=True):
+            st.rerun()
+    
+    with col3:
+        if st.button("🗑️ Clear Buffer", use_container_width=True):
+            clear_log_buffer()
+            st.success("Log buffer cleared!")
+            time.sleep(1)
+            st.rerun()
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Filter options
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        agent_filter = st.multiselect(
+            "Filter by Agent",
+            ["Config", "Watchman", "Analyst", "Dispatcher"],
+            default=["Config", "Watchman", "Analyst", "Dispatcher"]
+        )
+    
+    with col2:
+        level_filter = st.multiselect(
+            "Filter by Level",
+            ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+            default=["INFO", "WARNING", "ERROR", "CRITICAL"]
+        )
+    
+    st.markdown("---")
+    
+    # Get and filter logs
+    logs = get_recent_logs(limit=log_limit)
+    
+    if agent_filter:
+        logs = [log for log in logs if log['agent'] in agent_filter]
+    
+    if level_filter:
+        logs = [log for log in logs if log['level'] in level_filter]
+    
+    # Display log statistics
+    if logs:
+        st.markdown("### 📊 Log Statistics")
+        stat_col1, stat_col2, stat_col3, stat_col4 = st.columns(4)
+        
+        with stat_col1:
+            st.markdown(f"""
+            <div class='metric-card'>
+                <div class='metric-label'>Total Logs</div>
+                <div class='metric-value'>{len(logs)}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with stat_col2:
+            critical_count = len([log for log in logs if log['level'] == 'CRITICAL'])
+            st.markdown(f"""
+            <div class='metric-card'>
+                <div class='metric-label'>🚨 Critical</div>
+                <div class='metric-value' style='color: #EF4444;'>{critical_count}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with stat_col3:
+            warning_count = len([log for log in logs if log['level'] == 'WARNING'])
+            st.markdown(f"""
+            <div class='metric-card'>
+                <div class='metric-label'>⚠️ Warnings</div>
+                <div class='metric-value' style='color: #F59E0B;'>{warning_count}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with stat_col4:
+            error_count = len([log for log in logs if log['level'] == 'ERROR'])
+            st.markdown(f"""
+            <div class='metric-card'>
+                <div class='metric-label'>❌ Errors</div>
+                <div class='metric-value' style='color: #EF4444;'>{error_count}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Display logs
+        st.markdown("### 📜 Log Entries")
+        
+        for log in reversed(logs):  # Show most recent first
+            level = log['level']
+            
+            # Color coding based on level
+            if level == 'CRITICAL':
+                bg_color = 'rgba(239, 68, 68, 0.1)'
+                border_color = '#EF4444'
+                icon = '🚨'
+            elif level == 'ERROR':
+                bg_color = 'rgba(239, 68, 68, 0.08)'
+                border_color = '#EF4444'
+                icon = '❌'
+            elif level == 'WARNING':
+                bg_color = 'rgba(245, 158, 11, 0.1)'
+                border_color = '#F59E0B'
+                icon = '⚠️'
+            elif level == 'DEBUG':
+                bg_color = 'rgba(148, 163, 184, 0.05)'
+                border_color = '#64748B'
+                icon = '🔍'
+            else:  # INFO
+                bg_color = 'rgba(59, 130, 246, 0.05)'
+                border_color = '#3B82F6'
+                icon = 'ℹ️'
+            
+            timestamp_str = log['timestamp'].strftime('%Y-%m-%d %H:%M:%S')
+            
+            st.markdown(f"""
+            <div style='
+                background: {bg_color};
+                border-left: 3px solid {border_color};
+                padding: 0.75rem 1rem;
+                margin-bottom: 0.5rem;
+                border-radius: 0 8px 8px 0;
+                font-family: monospace;
+                font-size: 0.9rem;
+            '>
+                <div style='display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem;'>
+                    <span style='font-size: 1.2rem;'>{icon}</span>
+                    <span style='color: #94A3B8; font-size: 0.85rem;'>{timestamp_str}</span>
+                    <span style='color: {border_color}; font-weight: 600;'>[{level}]</span>
+                    <span style='color: #3B82F6; font-weight: 600;'>[Agent.{log['agent']}]</span>
+                </div>
+                <div style='color: #F1F5F9; padding-left: 2rem;'>
+                    {log['message']}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.info("No logs available yet. Run a supply chain analysis to generate logs.")
+        
+        st.markdown("""
+        <div style='text-align: center; padding: 2rem; color: #64748B;'>
+            <div style='font-size: 3rem; margin-bottom: 1rem;'>📋</div>
+            <div style='font-size: 1.1rem;'>Logs will appear here once agents start executing</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+def show_monitor_page(api_key, debug_mode):
+    """Display main supply chain monitor page"""
     
     # Hero
     st.markdown("""
@@ -575,12 +823,17 @@ def main():
         
         safe_count = 0
         critical_count = 0
+        risk_scores = []
         
         for idx, item in enumerate(suppliers):
             material = item.get('material')
             location = item.get('location')
             
             result = sentinel.check_item(material, location)
+            
+            # Track risk scores
+            if result['score'] is not None:
+                risk_scores.append(result['score'])
             
             with results:
                 if result['status'] == 'critical':
@@ -667,6 +920,14 @@ def main():
             
             time.sleep(1)
         
+        # Log cycle completion statistics
+        skipped_count = len(suppliers) - safe_count - critical_count
+        dispatcher_logger.info(f"Cycle complete — Scanned: {len(suppliers)} | Safe: {safe_count} | Critical: {critical_count} | Skipped: {skipped_count}")
+        
+        # Record metrics
+        metrics_tracker = MetricsTracker()
+        metrics_tracker.record_scan(len(suppliers), critical_count, risk_scores)
+        
         # Summary
         st.markdown("<br><br>", unsafe_allow_html=True)
         
@@ -692,12 +953,128 @@ def main():
         </div>
         """, unsafe_allow_html=True)
         
+        # Historical Metrics Section
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.markdown("### 📊 Historical Performance Metrics")
+        
+        total_scans = metrics_tracker.get_total_scans()
+        total_alerts = metrics_tracker.get_total_critical_alerts()
+        avg_risk = metrics_tracker.get_avg_risk_score()
+        last_scan = metrics_tracker.get_last_scan_timestamp()
+        
+        # Format last scan timestamp
+        if last_scan:
+            last_scan_dt = datetime.fromisoformat(last_scan)
+            last_scan_formatted = last_scan_dt.strftime("%B %d, %Y at %I:%M %p")
+        else:
+            last_scan_formatted = "No scans yet"
+        
+        # Display metrics in cards
+        metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
+        
+        with metric_col1:
+            st.markdown(f"""
+            <div class='premium-card' style='text-align: center; padding: 1.5rem;'>
+                <div style='font-size: 2rem; margin-bottom: 0.5rem;'>📈</div>
+                <div style='font-size: 2rem; font-weight: 700; color: #3B82F6; margin-bottom: 0.5rem;'>{total_scans}</div>
+                <div style='color: #94A3B8; font-size: 0.9rem;'>Total Scans Performed</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with metric_col2:
+            st.markdown(f"""
+            <div class='premium-card' style='text-align: center; padding: 1.5rem;'>
+                <div style='font-size: 2rem; margin-bottom: 0.5rem;'>🚨</div>
+                <div style='font-size: 2rem; font-weight: 700; color: #EF4444; margin-bottom: 0.5rem;'>{total_alerts}</div>
+                <div style='color: #94A3B8; font-size: 0.9rem;'>Total Critical Alerts</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with metric_col3:
+            st.markdown(f"""
+            <div class='premium-card' style='text-align: center; padding: 1.5rem;'>
+                <div style='font-size: 2rem; margin-bottom: 0.5rem;'>⚖️</div>
+                <div style='font-size: 2rem; font-weight: 700; color: #F59E0B; margin-bottom: 0.5rem;'>{avg_risk:.1f}/10</div>
+                <div style='color: #94A3B8; font-size: 0.9rem;'>Avg Risk Score</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with metric_col4:
+            st.markdown(f"""
+            <div class='premium-card' style='text-align: center; padding: 1.5rem;'>
+                <div style='font-size: 2rem; margin-bottom: 0.5rem;'>🕐</div>
+                <div style='font-size: 0.95rem; font-weight: 600; color: #10B981; margin-bottom: 0.5rem;'>{last_scan_formatted}</div>
+                <div style='color: #94A3B8; font-size: 0.9rem;'>Last Scan</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
         # Save
         with open("suppliers.json", "w") as f:
             json.dump(suppliers, f, indent=4)
         
         if debug_mode:
             st.info("🔧 Debug mode: Single cycle complete. Disable for 24/7 monitoring.")
+    
+    else:
+        # Show historical metrics even when not analyzing
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        
+        metrics_tracker = MetricsTracker()
+        total_scans = metrics_tracker.get_total_scans()
+        
+        if total_scans > 0:
+            st.markdown("### 📊 Historical Performance Metrics")
+            st.markdown("<p style='color: #94A3B8; margin-bottom: 1.5rem;'>Track your supply chain monitoring activity over time</p>", unsafe_allow_html=True)
+            
+            total_alerts = metrics_tracker.get_total_critical_alerts()
+            avg_risk = metrics_tracker.get_avg_risk_score()
+            last_scan = metrics_tracker.get_last_scan_timestamp()
+            
+            # Format last scan timestamp
+            if last_scan:
+                last_scan_dt = datetime.fromisoformat(last_scan)
+                last_scan_formatted = last_scan_dt.strftime("%B %d, %Y at %I:%M %p")
+            else:
+                last_scan_formatted = "No scans yet"
+            
+            # Display metrics in cards
+            metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
+            
+            with metric_col1:
+                st.markdown(f"""
+                <div class='premium-card' style='text-align: center; padding: 1.5rem;'>
+                    <div style='font-size: 2rem; margin-bottom: 0.5rem;'>📈</div>
+                    <div style='font-size: 2rem; font-weight: 700; color: #3B82F6; margin-bottom: 0.5rem;'>{total_scans}</div>
+                    <div style='color: #94A3B8; font-size: 0.9rem;'>Total Scans Performed</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with metric_col2:
+                st.markdown(f"""
+                <div class='premium-card' style='text-align: center; padding: 1.5rem;'>
+                    <div style='font-size: 2rem; margin-bottom: 0.5rem;'>🚨</div>
+                    <div style='font-size: 2rem; font-weight: 700; color: #EF4444; margin-bottom: 0.5rem;'>{total_alerts}</div>
+                    <div style='color: #94A3B8; font-size: 0.9rem;'>Total Critical Alerts</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with metric_col3:
+                st.markdown(f"""
+                <div class='premium-card' style='text-align: center; padding: 1.5rem;'>
+                    <div style='font-size: 2rem; margin-bottom: 0.5rem;'>⚖️</div>
+                    <div style='font-size: 2rem; font-weight: 700; color: #F59E0B; margin-bottom: 0.5rem;'>{avg_risk:.1f}/10</div>
+                    <div style='color: #94A3B8; font-size: 0.9rem;'>Avg Risk Score</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with metric_col4:
+                st.markdown(f"""
+                <div class='premium-card' style='text-align: center; padding: 1.5rem;'>
+                    <div style='font-size: 2rem; margin-bottom: 0.5rem;'>🕐</div>
+                    <div style='font-size: 0.95rem; font-weight: 600; color: #10B981; margin-bottom: 0.5rem;'>{last_scan_formatted}</div>
+                    <div style='color: #94A3B8; font-size: 0.9rem;'>Last Scan</div>
+                </div>
+                """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,18 @@
+{
+  "total_scans": 3,
+  "total_critical_alerts": 2,
+  "total_risk_scores": [
+    8,
+    2,
+    9
+  ],
+  "last_scan_timestamp": "2025-11-21T04:16:21.482861",
+  "scan_history": [
+    {
+      "timestamp": "2025-11-21T04:16:21.482861",
+      "suppliers": 3,
+      "critical": 2,
+      "avg_risk": 6.333333333333333
+    }
+  ]
+}

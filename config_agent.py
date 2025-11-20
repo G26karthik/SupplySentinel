@@ -6,7 +6,13 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
+# Import logging configuration
+from logging_config import setup_logging, config_logger
+
 load_dotenv()
+
+# Configure logging for CLI
+setup_logging(environment="cli")
 
 class ConfigurationAgent:
     def __init__(self):
@@ -37,21 +43,28 @@ class ConfigurationAgent:
         Generates a list of suppliers based on the business context.
         """
         print(f"\nAnalyzing supply chain for: '{business_context}'...")
+        config_logger.debug("Dependency mapping initiated")
         
         prompt = f"""
-        Based on the following business description: "{business_context}", 
-        identify the top 3 likely supply chain dependencies.
-        For each dependency, specify the 'material' and the likely 'location' (Country) of origin.
+        Based on: "{business_context}", identify the top 3 critical MATERIALS this business depends on.
+        For each material, specify the DOMINANT EXPORT COUNTRY (not specific suppliers).
         
-        Return the result as a JSON list of objects, where each object has "material" and "location" keys.
+        Focus on:
+        - Raw materials or key components (e.g., "Lithium" not "Tesla suppliers")
+        - Industry-standard sourcing patterns (e.g., "Semiconductors from Taiwan")
+        - Geopolitical supply chain realities
+        
+        Return as a JSON list of objects with "material" and "location" keys.
         Example:
         [
-            {{"material": "Coffee Beans", "location": "Brazil"}},
-            {{"material": "Paper Cups", "location": "China"}}
+            {{"material": "Lithium", "location": "Chile"}},
+            {{"material": "Cobalt", "location": "Democratic Republic of Congo"}}
         ]
+        
+        This simulates industry-standard dependencies to provide instant risk coverage without requiring sensitive data uploads.
         """
         
-        system_instruction = "You are a Global Supply Chain Expert. Your goal is to identify the top 3 most critical supply chain dependencies (materials and their likely country of origin) for a given business. You must be precise and realistic."
+        system_instruction = "You are a Global Supply Chain Expert specializing in materials sourcing. Your goal is to identify critical MATERIALS (not specific companies) and their dominant export countries for a given business. Focus on industry-standard dependencies based on the business type."
         
         try:
             response = self.client.models.generate_content(
@@ -64,9 +77,11 @@ class ConfigurationAgent:
             )
             
             suppliers = json.loads(response.text)
+            config_logger.info(f"Dependency mapping complete — {len(suppliers)} dependencies extracted")
             return suppliers
             
         except Exception as e:
+            config_logger.error(f"Error generating suppliers: {str(e)}", exc_info=True)
             print(f"Error generating suppliers: {e}")
             return []
 
@@ -77,8 +92,10 @@ class ConfigurationAgent:
         try:
             with open(filepath, "w") as f:
                 json.dump(suppliers, f, indent=4)
+            config_logger.info(f"Successfully saved {len(suppliers)} suppliers to {filepath}")
             print(f"\nSuccessfully saved {len(suppliers)} suppliers to {filepath}.")
         except Exception as e:
+            config_logger.error(f"Error saving suppliers to {filepath}: {str(e)}", exc_info=True)
             print(f"Error saving suppliers: {e}")
 
 if __name__ == "__main__":
