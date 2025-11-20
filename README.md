@@ -51,8 +51,6 @@ This transforms risk monitoring from **reactive** → **proactive + autonomous**
 
 ## 🏗️ 4. Multi-Agent Architecture
 
-![Architecture Diagram](architecture.png)
-
 **Key Agentic Features:**
 - ✅ **Autonomous Retry Loop**: If risk score = 0, Agent decides to retry with broader search
 - ✅ **Material-Based Modeling**: Focuses on materials (e.g., "Lithium") and dominant export countries (e.g., "Chile"), not specific companies
