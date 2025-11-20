@@ -62,9 +62,7 @@ Simulates industry-standard dependencies to provide instant risk coverage withou
 
 ---
 
-### 📐 Generate Architecture Diagram
-
-Use this MermaidJS code to generate the architecture diagram:
+### 📐 Architecture Diagram
 
 ```mermaid
 %%{init: {'theme':'dark', 'themeVariables': { 'primaryColor':'#3B82F6','primaryTextColor':'#fff','primaryBorderColor':'#2563EB','lineColor':'#10B981','secondaryColor':'#1E293B','tertiaryColor':'#0F172A'}}}%%
@@ -118,14 +116,6 @@ flowchart TD
     style Memory fill:#1E293B,stroke:#334155,stroke-width:2px,color:#94A3B8
     style End fill:#10B981,stroke:#059669,stroke-width:3px,color:#fff
 ```
-
-**To render:**
-1. Go to [Mermaid Live Editor](https://mermaid.live/)
-2. Paste the code above
-3. Export as PNG with dark theme
-4. Save as `architecture.png` in repository root
-5. Commit and push to GitHub
-
 ---
 
 ## 🧩 5. Features from the Course Demonstrated
